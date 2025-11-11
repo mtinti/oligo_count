@@ -35,10 +35,10 @@ def reverse_complement(seq):
     return rev_comp
 
 class ParallelOligoCounter:
-    def __init__(self, oligos, search_strategy=None, batch_size=10000, num_consumers=None):
+    def __init__(self, oligos, search_strategy=None, batch_size=10000, num_consumers=None, show_progress_bar=False):
         """
         Initialize the parallel oligo counter.
-        
+
         Args:
             oligos (list): List of oligo sequences to search for
             search_strategy (callable, optional): Function for searching oligos
@@ -46,10 +46,12 @@ class ParallelOligoCounter:
                 If None, will use the default search strategy
             batch_size (int): Number of read pairs to process in each batch
             num_consumers (int): Number of consumer processes to use (defaults to CPU count)
+            show_progress_bar (bool): Whether to display progress bars (default: False)
         """
         self.oligos = oligos
         self.batch_size = batch_size
         self.num_consumers = num_consumers or multiprocessing.cpu_count()
+        self.show_progress_bar = show_progress_bar
         
         # Pre-compute reverse complements for all oligos
         self.rc_oligos = {oligo: reverse_complement(oligo) for oligo in oligos}
@@ -196,23 +198,32 @@ class ParallelOligoCounter:
         sample_label = f"[{prefix}]" if prefix else ""
         print(f"\n{sample_label} Processing: {os.path.basename(fastq1_path)} & {os.path.basename(fastq2_path)}")
 
-        # Create Rich Progress with custom columns
-        self.progress = Progress(
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(),
-            MofNCompleteColumn(),
-            TextColumn("•"),
-            TimeElapsedColumn(),
-        )
+        # Setup progress tracking if enabled
+        if self.show_progress_bar:
+            # Create Rich Progress with custom columns
+            self.progress = Progress(
+                TextColumn("[progress.description]{task.description}"),
+                BarColumn(),
+                MofNCompleteColumn(),
+                TextColumn("•"),
+                TimeElapsedColumn(),
+            )
+            progress_context = self.progress
+        else:
+            # No progress bars - use a dummy context manager
+            import contextlib
+            self.progress = None
+            progress_context = contextlib.nullcontext()
 
-        with self.progress:
-            # Add tasks for queuing and processing
-            self.queuing_task = self.progress.add_task(
-                f"{sample_label} Batches queued", total=None
-            )
-            self.processing_task = self.progress.add_task(
-                f"{sample_label} Batches processed", total=None
-            )
+        with progress_context:
+            # Add tasks for queuing and processing if progress bars enabled
+            if self.show_progress_bar:
+                self.queuing_task = self.progress.add_task(
+                    f"{sample_label} Batches queued", total=None
+                )
+                self.processing_task = self.progress.add_task(
+                    f"{sample_label} Batches processed", total=None
+                )
 
             # Create and start producer thread
             producer_thread = threading.Thread(
@@ -234,15 +245,16 @@ class ParallelOligoCounter:
             while (producer_thread.is_alive() or any(t.is_alive() for t in consumer_threads) or
                    self.batches_processed < self.batches_queued):
 
-                # Update progress bar totals
-                with self.batches_lock:
-                    # Update queuing progress bar total
-                    if self.batches_queued > 0:
-                        self.progress.update(self.queuing_task, total=self.batches_queued)
+                # Update progress bar totals if enabled
+                if self.show_progress_bar:
+                    with self.batches_lock:
+                        # Update queuing progress bar total
+                        if self.batches_queued > 0:
+                            self.progress.update(self.queuing_task, total=self.batches_queued)
 
-                    # Update processing progress bar total
-                    if self.batches_queued > 0:
-                        self.progress.update(self.processing_task, total=self.batches_queued)
+                        # Update processing progress bar total
+                        if self.batches_queued > 0:
+                            self.progress.update(self.processing_task, total=self.batches_queued)
 
                 time.sleep(0.1)
 

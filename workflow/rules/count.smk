@@ -12,6 +12,7 @@ rule count_oligos:
     params:
         sample_name = "{sample}",
         batch_size = config["batch_size"],
+        show_progress_bar = config["show_progress_bar"],
         output_dir = lambda wildcards: os.path.join(config["output_dir"], wildcards.sample)
     threads: config["threads"]
     conda:

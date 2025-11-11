@@ -21,6 +21,7 @@ samples:
 # Processing parameters
 threads: 16              # Number of threads for parallel processing per sample
 batch_size: 10000        # Number of read pairs per batch
+show_progress_bar: false # Show progress bars during processing (true for troubleshooting, false for cleaner logs)
 
 # Merge options
 merge_prefix: "oligo_counts"  # Prefix for merged output files

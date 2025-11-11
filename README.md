@@ -52,7 +52,7 @@ Edit `config/config.yaml` to specify:
 
 1. **Oligo sequences file**: Path to file containing oligo sequences (in `indata/`)
 2. **Samples**: For each sample, provide paths to R1 and R2 FASTQ files (in `indata/`)
-3. **Processing parameters**: Threads and batch size
+3. **Processing parameters**: Threads, batch size, and progress bar display
 4. **Output settings**: Output directory and merge prefix
 
 Example configuration:
@@ -71,8 +71,13 @@ samples:
 
 threads: 16
 batch_size: 10000
+show_progress_bar: false  # Set to true for troubleshooting
 merge_prefix: "oligo_counts"
 ```
+
+**Note on `show_progress_bar`:**
+- Set to `false` (default) for cleaner log files in production
+- Set to `true` when troubleshooting to see detailed progress bars
 
 ## Usage
 

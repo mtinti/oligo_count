@@ -19,6 +19,7 @@ oligos_file = snakemake.input.oligos
 output_file = snakemake.output.counts
 sample_name = snakemake.params.sample_name
 batch_size = snakemake.params.batch_size
+show_progress_bar = snakemake.params.show_progress_bar
 threads = snakemake.threads
 
 # Load oligos
@@ -29,7 +30,8 @@ print(f"[{sample_name}] Loaded {len(oligos)} oligo sequences", flush=True)
 counter = ParallelOligoCounter(
     oligos=oligos,
     batch_size=batch_size,
-    num_consumers=threads
+    num_consumers=threads,
+    show_progress_bar=show_progress_bar
 )
 
 # Count oligos
