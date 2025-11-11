@@ -1,0 +1,26 @@
+# Snakemake Configuration for Oligo Counting Pipeline
+# ====================================================
+
+# Oligo sequences file
+# File should contain oligo sequences (CSV/TSV with "Sequence" column or one sequence per line)
+oligo_file: "indata/oligo_sequences.txt"
+
+# Output directory for results
+output_dir: "results"
+
+# Samples to process
+# Specify full paths to R1 and R2 FASTQ files for each sample
+samples:
+  TcCRK12BirA5C6:
+    R1: "indata/TcCRK12BirA5C6/V350357015_L02_B5GANIokjbRAAHA-114_R1.fastq.gz"
+    R2: "indata/TcCRK12BirA5C6/V350357015_L02_B5GANIokjbRAAHA-114_R2.fastq.gz"
+  TcCRK12-sKOE11:
+    R1: "indata/TcCRK12-sKOE11/V350357015_L02_B5GANIokjbRAABA-25_R1.fastq.gz"
+    R2: "indata/TcCRK12-sKOE11/V350357015_L02_B5GANIokjbRAABA-25_R2.fastq.gz"
+
+# Processing parameters
+threads: 16              # Number of threads for parallel processing per sample
+batch_size: 10000        # Number of read pairs per batch
+
+# Merge options
+merge_prefix: "oligo_counts"  # Prefix for merged output files
