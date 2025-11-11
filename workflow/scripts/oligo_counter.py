@@ -16,7 +16,7 @@ import queue
 import threading
 import multiprocessing
 from concurrent.futures import ThreadPoolExecutor
-from tqdm.auto import tqdm
+from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn, MofNCompleteColumn
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
 from collections import Counter
 import os
@@ -68,11 +68,12 @@ class ParallelOligoCounter:
         self.batches_queued = 0
         self.batches_processed = 0
         self.batches_lock = threading.Lock()
-        
-        # Progress bars
-        self.queuing_pbar = None
-        self.processing_pbar = None
-        
+
+        # Rich progress tracking
+        self.progress = None
+        self.queuing_task = None
+        self.processing_task = None
+
         # Sentinel value to signal end of processing
         self.SENTINEL = None
     
@@ -116,18 +117,18 @@ class ParallelOligoCounter:
                         # Update the batches queued counter and progress bar
                         with self.batches_lock:
                             self.batches_queued += 1
-                            if self.queuing_pbar:
-                                self.queuing_pbar.update(1)
+                            if self.progress and self.queuing_task is not None:
+                                self.progress.update(self.queuing_task, advance=1)
                         batch = []
-                
+
                 # Put remaining items in the queue
                 if batch:
                     self.queue.put(batch)
                     # Update the batches queued counter and progress bar
                     with self.batches_lock:
                         self.batches_queued += 1
-                        if self.queuing_pbar:
-                            self.queuing_pbar.update(1)
+                        if self.progress and self.queuing_task is not None:
+                            self.progress.update(self.queuing_task, advance=1)
                     
         except Exception as e:
             print(f"Producer error: {e}")
@@ -168,8 +169,8 @@ class ParallelOligoCounter:
             # Update processed batch count and progress bar
             with self.batches_lock:
                 self.batches_processed += 1
-                if self.processing_pbar:
-                    self.processing_pbar.update(1)
+                if self.progress and self.processing_task is not None:
+                    self.progress.update(self.processing_task, advance=1)
     
     def count_oligos_in_fastq_pairs(self, fastq1_path, fastq2_path, prefix="", output_file=None):
         """
@@ -194,51 +195,66 @@ class ParallelOligoCounter:
         # Create progress bars with initial values
         sample_label = f"[{prefix}]" if prefix else ""
         print(f"\n{sample_label} Processing: {os.path.basename(fastq1_path)} & {os.path.basename(fastq2_path)}")
-        self.queuing_pbar = tqdm(total=1, desc=f"{sample_label} Batches queued", unit=" batches", position=0)
-        self.processing_pbar = tqdm(total=1, desc=f"{sample_label} Batches processed", unit=" batches", position=1)
-        
-        # Create and start producer thread
-        producer_thread = threading.Thread(
-            target=self.producer, 
-            args=(fastq1_path, fastq2_path)
+
+        # Create Rich Progress with custom columns
+        self.progress = Progress(
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            MofNCompleteColumn(),
+            TextColumn("•"),
+            TimeElapsedColumn(),
         )
-        producer_thread.daemon = True
-        producer_thread.start()
-        
-        # Create and start consumer threads
-        consumer_threads = []
-        for i in range(self.num_consumers):
-            t = threading.Thread(target=self.consumer, args=(i,))
-            t.daemon = True
-            t.start()
-            consumer_threads.append(t)
-            
-        # Monitor progress until completion
-        while (producer_thread.is_alive() or any(t.is_alive() for t in consumer_threads) or 
-               self.batches_processed < self.batches_queued):
-            
-            # Update progress bar totals
-            with self.batches_lock:
-                # Update queuing progress bar total
-                if self.batches_queued > 0 and self.queuing_pbar.total != self.batches_queued:
-                    self.queuing_pbar.total = self.batches_queued
-                
-                # Update processing progress bar total
-                if self.batches_queued > 0 and self.processing_pbar.total != self.batches_queued:
-                    self.processing_pbar.total = self.batches_queued
-            
-            time.sleep(0.1)
-        
-        # Wait for all threads to complete
-        producer_thread.join()
-        for t in consumer_threads:
-            t.join()
-        
-        # Close progress bars
-        self.queuing_pbar.close()
-        self.processing_pbar.close()
-        self.queuing_pbar = None
-        self.processing_pbar = None
+
+        with self.progress:
+            # Add tasks for queuing and processing
+            self.queuing_task = self.progress.add_task(
+                f"{sample_label} Batches queued", total=None
+            )
+            self.processing_task = self.progress.add_task(
+                f"{sample_label} Batches processed", total=None
+            )
+
+            # Create and start producer thread
+            producer_thread = threading.Thread(
+                target=self.producer,
+                args=(fastq1_path, fastq2_path)
+            )
+            producer_thread.daemon = True
+            producer_thread.start()
+
+            # Create and start consumer threads
+            consumer_threads = []
+            for i in range(self.num_consumers):
+                t = threading.Thread(target=self.consumer, args=(i,))
+                t.daemon = True
+                t.start()
+                consumer_threads.append(t)
+
+            # Monitor progress until completion
+            while (producer_thread.is_alive() or any(t.is_alive() for t in consumer_threads) or
+                   self.batches_processed < self.batches_queued):
+
+                # Update progress bar totals
+                with self.batches_lock:
+                    # Update queuing progress bar total
+                    if self.batches_queued > 0:
+                        self.progress.update(self.queuing_task, total=self.batches_queued)
+
+                    # Update processing progress bar total
+                    if self.batches_queued > 0:
+                        self.progress.update(self.processing_task, total=self.batches_queued)
+
+                time.sleep(0.1)
+
+            # Wait for all threads to complete
+            producer_thread.join()
+            for t in consumer_threads:
+                t.join()
+
+        # Clean up progress tracking
+        self.progress = None
+        self.queuing_task = None
+        self.processing_task = None
         
         # Create DataFrame from the counter
         result = {}
