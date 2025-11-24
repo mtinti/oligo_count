@@ -1,0 +1,30 @@
+# Snakemake Pipeline for Oligo Counting
+# =======================================
+# This pipeline counts oligonucleotides in paired FASTQ files and merges results
+#
+# Usage:
+#   snakemake --use-conda --cores <num_cores>
+#   snakemake --use-conda --cores all --configfile config/config.yaml
+
+import os
+from pathlib import Path
+
+# Load configuration
+configfile: "../config/config.yaml"
+
+# Extract sample names
+SAMPLES = list(config["samples"].keys())
+
+# ============================================================================
+# Target rule - defines final outputs
+# ============================================================================
+rule all:
+    input:
+        os.path.join(config["output_dir"], f"{config['merge_prefix']}_merged_all_samples.csv"),
+        os.path.join(config["output_dir"], f"{config['merge_prefix']}_merge_summary.txt")
+
+# ============================================================================
+# Include rules from separate files
+# ============================================================================
+include: "rules/count.smk"
+include: "rules/merge.smk"
