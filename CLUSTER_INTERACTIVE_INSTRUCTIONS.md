@@ -22,7 +22,7 @@ qrsh -pe smp 16
 cd /cluster/majf_lab/mtinti  # Replace with your lab folder path
 
 # 5. Clone the repository (this step is done only once)
-git clone https://github.com/mtinti/count_oligo.git
+git clone https://github.com/mtinti/oligo_count.git
 
 # 6. Create and activate conda environment (this step is done only once)
 conda create -n snakemake snakemake
