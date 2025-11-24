@@ -25,26 +25,7 @@ CORES=40
 # Example: SNAKEMAKE_CONDA_PREFIX="${HOME}/.snakemake/conda"
 SNAKEMAKE_CONDA_PREFIX=""
 
-##############################################################################
-# CONDA INITIALIZATION
-##############################################################################
 
-echo "Initializing conda..."
-
-# Initialize conda for bash shell
-# This allows Snakemake to create new conda environments for rules
-if [ -f "${HOME}/miniconda3/etc/profile.d/conda.sh" ]; then
-    source "${HOME}/miniconda3/etc/profile.d/conda.sh"
-elif [ -f "${HOME}/anaconda3/etc/profile.d/conda.sh" ]; then
-    source "${HOME}/anaconda3/etc/profile.d/conda.sh"
-elif [ -f "/opt/conda/etc/profile.d/conda.sh" ]; then
-    source "/opt/conda/etc/profile.d/conda.sh"
-else
-    echo "WARNING: Could not find conda installation"
-    echo "Conda environments may not work properly"
-fi
-
-echo "Conda initialized"
 
 ##############################################################################
 # SETUP - Copy project to TMPDIR and run from there
