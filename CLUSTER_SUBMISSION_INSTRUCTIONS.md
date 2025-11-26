@@ -31,7 +31,7 @@ Edit `submit_snakemake_cluster.sh` and modify these SGE directives based on your
 
 **Important**:
 - Set `local_free` based on input FASTQ size PLUS results size (default: 200G)
-- Set `m_mem_free` based on memory requirements (default: 20G per core)
+- Set `m_mem_free` based on memory requirements (default: 20G )
 - Set `smp` to desired number of parallel cores (default: 40)
 - Update the `CORES` variable in the script to match `-pe smp`
 
